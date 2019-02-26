@@ -6,10 +6,12 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.stream.ActorMaterializer;
 import akka.stream.Materializer;
+import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import io.bacta.sim.BattleSimulationActor;
 import io.bacta.sim.BattleSimulationResult;
 import io.bacta.sim.TipSimulationActor;
+import scala.concurrent.ExecutionContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,11 +64,13 @@ public class App extends AbstractActor {
         System.out.printf("Simulating %d battles and %d tips...\n", totalBattleSimulations, totalTipSimulations);
 
         final Materializer materializer = ActorMaterializer.create(context().system());
+        final ExecutionContext ec = context().system().dispatcher();
 
         startTimestamp = System.currentTimeMillis();
 
         Source.from(battleSimulations)
-                .runForeach(sim -> sim.tell(new BattleSimulationActor.StartBattle(), self()), materializer);
+                .to(Sink.foreachParallel(4, sim -> sim.tell(new BattleSimulationActor.StartBattle(), self()), ec))
+                .run(materializer);
     }
 
     private ActorRef createBattleSimulation() {
