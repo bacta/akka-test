@@ -11,6 +11,7 @@ import akka.stream.javadsl.Source;
 import io.bacta.sim.BattleSimulationActor;
 import io.bacta.sim.BattleSimulationResult;
 import io.bacta.sim.TipSimulationActor;
+import io.bacta.sim.TipSimulationResult;
 import scala.concurrent.ExecutionContext;
 
 import java.io.IOException;
@@ -23,9 +24,8 @@ import java.util.stream.Stream;
 
 public class App extends AbstractActor {
     private final static Random RNG = new Random();
-    private final static int minBattleParticipants = 10;
-    private final static int maxBattleParticipants = 30;
-
+    private final static int minBattleParticipants = 5;
+    private final static int maxBattleParticipants = 10;
 
     public static Props props(int totalBattleSimulations, int totalTipSimulations) {
         return Props.create(App.class, () -> new App(totalBattleSimulations, totalTipSimulations));
@@ -40,12 +40,14 @@ public class App extends AbstractActor {
     private long startTimestamp;
 
     private final List<BattleSimulationResult> battleSimulationResults;
+    private final List<TipSimulationResult> tipSimulationResults;
 
     public App(int totalBattleSimulations, int totalTipSimulations) {
         this.totalBattleSimulations = totalBattleSimulations;
         this.totalTipSimulations = totalTipSimulations;
 
         this.battleSimulationResults = new ArrayList<>(totalBattleSimulations);
+        this.tipSimulationResults = new ArrayList<>(totalTipSimulations);
 
         this.battleSimulations = Stream.generate(this::createBattleSimulation).limit(totalBattleSimulations).collect(Collectors.toList());
         this.tipSimulations = Stream.generate(this::createTipSimulation).limit(totalTipSimulations).collect(Collectors.toList());
@@ -57,6 +59,8 @@ public class App extends AbstractActor {
                 .match(StartSimulation.class, this::start)
                 .match(BattleSimulationResult.class, this::receiveBattleSimulationResult)
                 .match(BattleSimulationsComplete.class, this::battleSimulationsCompleted)
+                .match(TipSimulationResult.class, this::receiveTipSimulationResult)
+                .match(TipSimulationsComplete.class, this::tipSimulationsCompleted)
                 .build();
     }
 
@@ -70,6 +74,14 @@ public class App extends AbstractActor {
 
         Source.from(battleSimulations)
                 .to(Sink.foreachParallel(4, sim -> sim.tell(new BattleSimulationActor.StartBattle(), self()), ec))
+                .run(materializer);
+
+        final int minTipsPerMs = 1000;
+        final int maxTipsPerMs = 5000;
+
+        Source.from(tipSimulations)
+                //.throttle(minTipsPerMs,FiniteDuration.apply(50, TimeUnit.MILLISECONDS), maxTipsPerMs, ThrottleMode.shaping())
+                .to(Sink.foreachParallel(4, sim -> sim.tell(new TipSimulationActor.StartSimulation(), self()), ec))
                 .run(materializer);
     }
 
@@ -94,6 +106,16 @@ public class App extends AbstractActor {
         }
     }
 
+    private void receiveTipSimulationResult(TipSimulationResult result) {
+        tipSimulationResults.add(result);
+
+        context().stop(sender());
+
+        if (tipSimulationResults.size() == this.totalTipSimulations) {
+            self().tell(new TipSimulationsComplete(), self());
+        }
+    }
+
     private void battleSimulationsCompleted(BattleSimulationsComplete msg) {
         final long finishTimestamp = System.currentTimeMillis();
         final long deltaTimestamp = finishTimestamp - startTimestamp;
@@ -105,6 +127,25 @@ public class App extends AbstractActor {
         battleSimulationResults.stream()
                 .sorted(Comparator.comparingInt(BattleSimulationResult::getId))
                 .forEachOrdered(this::printBattleSimulationResult);
+    }
+
+    private void tipSimulationsCompleted(TipSimulationsComplete msg) {
+        final long finishTimestmap = System.currentTimeMillis();
+        final long deltaTimestamp = finishTimestmap - startTimestamp;
+
+        System.out.printf("%d transfers processed in %d milliseconds.\n",
+                tipSimulationResults.size(),
+                deltaTimestamp);
+
+        final long totalCash = tipSimulationResults.stream().mapToLong(TipSimulationResult::getCash).sum();
+        final long totalBank = tipSimulationResults.stream().mapToLong(TipSimulationResult::getBank).sum();
+        final int totalRefunds = tipSimulationResults.stream().mapToInt(r -> r.isRefunded() ? 1 : 0).sum();
+        final int totalFailures = tipSimulationResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
+
+        System.out.printf("- Cash Credits Transferred: %d\n", totalCash);
+        System.out.printf("- Bank Credits Transferred: %d\n", totalBank);
+        System.out.printf("- Failures: %d\n", totalRefunds);
+        System.out.printf("- Refunds: %d\n", totalFailures);
     }
 
     private void printBattleSimulationResult(BattleSimulationResult result) {
@@ -129,9 +170,12 @@ public class App extends AbstractActor {
     private static class BattleSimulationsComplete {
     }
 
+    private static class TipSimulationsComplete {
+    }
+
     public static void main(String[] args) {
-        final int totalBattleSimulations = 1000;
-        final int totalTipSimulations = 10;
+        final int totalBattleSimulations = 1;
+        final int totalTipSimulations = 500000;
 
         final ActorSystem actorSystem = ActorSystem.create("bacta");
         final ActorRef sim = actorSystem.actorOf(App.props(totalBattleSimulations, totalTipSimulations));

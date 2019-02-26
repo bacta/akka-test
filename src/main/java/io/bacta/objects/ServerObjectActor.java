@@ -16,7 +16,7 @@ public abstract class ServerObjectActor extends AbstractActor {
     @Setter
     private String name;
 
-    public ServerObjectActor() {
+    protected ServerObjectActor() {
         this.id = idGenerator.getAndIncrement();
         this.name = String.format("Object %d", id);
     }
