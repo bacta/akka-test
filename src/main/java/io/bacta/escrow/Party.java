@@ -3,10 +3,12 @@ package io.bacta.escrow;
 import akka.actor.ActorRef;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 @Getter
+@Setter
 @RequiredArgsConstructor
 public class Party {
     private final ActorRef actor;
-    private final String name;
+    private String name;
 }

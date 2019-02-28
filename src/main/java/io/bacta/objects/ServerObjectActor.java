@@ -5,19 +5,15 @@ import akka.japi.pf.ReceiveBuilder;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 @Getter
 public abstract class ServerObjectActor extends AbstractActor {
-    private static final AtomicLong idGenerator = new AtomicLong(1);
-
     private final long id;
 
     @Setter
     private String name;
 
-    protected ServerObjectActor() {
-        this.id = idGenerator.getAndIncrement();
+    protected ServerObjectActor(long id) {
+        this.id = id;
         this.name = String.format("Object %d", id);
     }
 
@@ -26,7 +22,7 @@ public abstract class ServerObjectActor extends AbstractActor {
         return this.appendReceiveHandlers(receiveBuilder()).build();
     }
 
-    protected ReceiveBuilder appendReceiveHandlers(ReceiveBuilder receiveBuilder){
+    protected ReceiveBuilder appendReceiveHandlers(ReceiveBuilder receiveBuilder) {
         return receiveBuilder
                 .matchAny(this::unhandledMessage);
     }

@@ -5,11 +5,9 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class Deposit {
+public class DepositAck {
+    private final long transactionId;
+    private final String name;
     private final int cash;
     private final int bank;
-
-    public Withdrawal toWithdrawal() {
-        return new Withdrawal(cash, bank);
-    }
 }

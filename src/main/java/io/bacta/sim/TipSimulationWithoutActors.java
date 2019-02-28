@@ -1,6 +1,5 @@
 package io.bacta.sim;
 
-import io.bacta.combat.CreatureStats;
 import io.bacta.escrow.EscrowTransaction;
 import io.bacta.escrow.InsufficientFundsStorageException;
 import io.bacta.name.NameGenerator;
@@ -15,17 +14,10 @@ public class TipSimulationWithoutActors {
     private static final AtomicInteger idGenerator = new AtomicInteger(1);
     private static final Random RNG = new Random();
 
-    private static final int minCashTransfer = 0;
-    private static final int maxCashTransfer = 5000;
-
-    private static final int minBankTransfer = 0;
-    private static final int maxBankTransfer = 10000;
-
-    private static final int minCashAccount = 0;
-    private static final int maxCashAccount = 100000000;
-
-    private static final int minBankAccount = 0;
-    private static final int maxBankAccount = 100000000;
+    private final static int MIN_CASH_TRANSFER = 1000;
+    private final static int MAX_CASH_TRANSFER = 1000000;
+    private final static int MIN_BANK_TRANSFER = 100000;
+    private final static int MAX_BANK_TRANSFER = 100000000;
 
     private boolean refundIssued;
     private boolean failed;
@@ -37,8 +29,8 @@ public class TipSimulationWithoutActors {
             final CreatureObject source = createParty();
             final CreatureObject target = createParty();
 
-            cash = RNG.nextInt(maxCashTransfer - minCashTransfer + 1) + minCashTransfer;
-            bank = RNG.nextInt(maxBankTransfer - minBankTransfer + 1) + minBankTransfer;
+            cash = RNG.nextInt(MAX_CASH_TRANSFER - MIN_CASH_TRANSFER + 1) + MIN_CASH_TRANSFER;
+            bank = RNG.nextInt(MAX_BANK_TRANSFER - MIN_BANK_TRANSFER + 1) + MIN_BANK_TRANSFER;
 
             final EscrowTransaction transaction = new EscrowTransaction(source, target, cash, bank);
             transaction.performTransfer();
@@ -56,16 +48,7 @@ public class TipSimulationWithoutActors {
 
     //NOTE 1: We don't need this weird Party state object for the test now because we can query the creature on demand.
     private CreatureObject createParty() {
-        final CreatureStats stats = CreatureStats.random();
         final String name = NameGenerator.generate();
-
-        final int cash = RNG.nextInt(maxCashAccount - minCashAccount + 1) + minCashAccount;
-        final int bank = RNG.nextInt(maxBankAccount - minBankAccount + 1) + minBankAccount;
-
-        final CreatureObject creature = new CreatureObject(name, stats);
-        creature.setCash(cash);
-        creature.setBank(bank);
-
-        return creature;
+        return new CreatureObject(name);
     }
 }

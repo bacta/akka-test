@@ -1,24 +1,25 @@
 package io.bacta.objects;
 
 import io.bacta.chat.MailMessage;
-import io.bacta.combat.CreatureStats;
 import io.bacta.escrow.InsufficientFundsStorageException;
 import io.bacta.escrow.InsuffientFundsException;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Random;
+
 @Getter
 @Setter
 public class CreatureObject extends TangibleObject {
+    private static final Random RNG = new Random();
+
     private String name;
-    private int cash;
-    private int bank;
 
-    private CreatureStats ham;
+    private int cash = RNG.nextInt();
+    private int bank = RNG.nextInt();
 
-    public CreatureObject(String name, CreatureStats stats) {
+    public CreatureObject(String name) {
         this.name = name;
-        this.ham = stats;
     }
 
     public void sendSystemMessage(String msg) {
